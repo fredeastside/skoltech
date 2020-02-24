@@ -1,0 +1,80 @@
+version: '3.1'
+
+services:
+    api:
+        container_name: skoltech_api
+        build:
+            context: .
+            dockerfile: ./docker/api/Dockerfile
+        env_file:
+            - .env
+        ports:
+            - '${APP_PORT}:${APP_PORT}'
+        networks:
+            - skoltech
+        environment:
+            - APP_PORT=${APP_PORT}
+            - KAFKA_HOST=${KAFKA_HOST}
+            - KAFKA_PORT=${KAFKA_PORT}
+        depends_on:
+            - kafka
+    worker:
+        container_name: skoltech_worker
+        build:
+            context: .
+            dockerfile: ./docker/worker/Dockerfile
+        env_file:
+            - .env
+        networks:
+            - skoltech
+        environment:
+            - KAFKA_HOST=${KAFKA_HOST}
+            - KAFKA_PORT=${KAFKA_PORT}
+            - PARTNER_URL=${PARTNER_URL}
+            - PARTNER_PORT=${PARTNER_PORT}
+        depends_on:
+            - kafka
+    partner:
+        container_name: skoltech_partner
+        build:
+            context: .
+            dockerfile: ./docker/partner/Dockerfile
+        env_file:
+            - .env
+        ports:
+            - '${PARTNER_PORT}:${PARTNER_PORT}'
+        networks:
+            - skoltech
+        environment:
+            - PARTNER_PORT=${PARTNER_PORT}
+        depends_on:
+            - worker
+    zookeeper:
+        container_name: skoltech_zookeeper
+        image: 'bitnami/zookeeper:3'
+        ports:
+            - '${ZOOKEEPER_PORT}:${ZOOKEEPER_PORT}'
+        environment:
+            - ALLOW_ANONYMOUS_LOGIN=yes
+        env_file:
+            - .env
+        networks:
+            - skoltech
+    kafka:
+        container_name: skoltech_kafka
+        image: 'bitnami/kafka:2'
+        ports:
+            - '${KAFKA_PORT}:${KAFKA_PORT}'
+        env_file:
+            - .env
+        environment:
+            - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:${ZOOKEEPER_PORT}
+            - ALLOW_PLAINTEXT_LISTENER=yes
+        depends_on:
+            - zookeeper
+        networks:
+            - skoltech          
+
+networks:
+    skoltech:
+        driver: bridge
